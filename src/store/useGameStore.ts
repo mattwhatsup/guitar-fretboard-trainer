@@ -1,9 +1,12 @@
 import { create } from 'zustand'
-import { persist } from 'zustand/middleware' // 📦 导入 Zustand 官方持久化插件
+import { persist } from 'zustand/middleware'
 import { getNoteByPosition } from '../utils/guitarLogic'
+import { playGuitarTone } from '../utils/audioEngine'
 
+// 1. 定义严谨的音名联合类型
 export type NoteName = "C" | "C#" | "D" | "D#" | "E" | "F" | "F#" | "G" | "G#" | "A" | "A#" | "B" | "Db" | "Eb" | "Gb" | "Ab" | "Bb";
 
+// 🎵 音符异名同音双向映射表，用于支持严格的“升降号倾向”比对与识别
 const ACCIDENTAL_MAPPING: Record<string, string> = {
   'C#': 'Db', 'Db': 'C#',
   'D#': 'Eb', 'Eb': 'D#',
@@ -20,18 +23,18 @@ interface GameState {
   showAnswerMode: boolean
   gameStage: 'playing' | 'completed'
 
-  // ⏱️ 计时与看板（这些不需要持久化，刷新网页应该清零）
+  // ⏱️ 动态计时与反馈账本（这些属于临时状态，不需要且不应该持久化）
   timerMs: number
   isTimerRunning: boolean
   totalPassed: number
   totalTimeSpentMs: number
   lastClickedFeedback: { stringIdx: number; fretIdx: number; status: 'correct' | 'wrong' | 'none' }
 
-  // ⚙️ 需要持久化的配置项
+  // ⚙️ 需要持久化的核心配置项
   onlyNatural: boolean
   accidentalMode: 'sharp' | 'flat' | 'mixed'
 
-  // 方法
+  // 🕹️ 核心控制流方法
   initGame: () => void
   checkAnswer: (stringIdx: number, fretIdx: number) => void
   revealAllAnswers: () => void
@@ -43,7 +46,7 @@ interface GameState {
   setAccidentalMode: (mode: 'sharp' | 'flat' | 'mixed') => void
 }
 
-// 🎲 内部辅助：根据特训规则，生成下一个合法的随机音符
+// 🎲 内部辅助：根据高级特训规则，随机抽调下一个合法的音符任务
 const drawValidNote = (onlyNatural: boolean, mode: 'sharp' | 'flat' | 'mixed'): NoteName => {
   const naturalPool: NoteName[] = ['C', 'D', 'E', 'F', 'G', 'A', 'B']
   const sharpPool: NoteName[] = ['C#', 'D#', 'F#', 'G#', 'A#']
@@ -65,12 +68,13 @@ const drawValidNote = (onlyNatural: boolean, mode: 'sharp' | 'flat' | 'mixed'): 
   }
 }
 
-// 🎯 内部辅助：计算当前音符在指板（激活的琴弦）上所有正确的品位
+// 🎯 内部辅助：动态扫描当前被激活的琴弦，计算出目标音符在指板（0-11品）上所有的正确坐标
 const getNoteTargets = (note: NoteName, strings: number[]) => {
   const targets: { stringIdx: number; fretIdx: number }[] = []
   strings.forEach((stringIdx) => {
     for (let fretIdx = 0; fretIdx <= 11; fretIdx++) {
       const boardNote = getNoteByPosition(stringIdx, fretIdx)
+      // 兼容异名同音匹配逻辑：物理名一致，或者在乐理转化表中映射一致（例如题目叫 Bb，指板底层名返回 A#）
       if (boardNote === note || ACCIDENTAL_MAPPING[boardNote] === note) {
         targets.push({ stringIdx, fretIdx })
       }
@@ -94,12 +98,11 @@ export const useGameStore = create<GameState>()(
       totalTimeSpentMs: 0,
       lastClickedFeedback: { stringIdx: 0, fretIdx: 0, status: 'none' },
 
-      // 默认初始配置
       onlyNatural: false,
       accidentalMode: 'mixed',
 
       initGame: () => {
-        // 初始化时，直接读取已经从 localStorage 中恢复出来的最新配置
+        // 自动拉取已经从 localStorage 加载回来的持久化配置
         const { onlyNatural, accidentalMode, activeStrings } = get()
         const note = drawValidNote(onlyNatural, accidentalMode)
         const targets = getNoteTargets(note, activeStrings)
@@ -120,7 +123,13 @@ export const useGameStore = create<GameState>()(
         const { currentNote, correctPositions, totalTargetCount, isTimerRunning, timerMs } = get()
         if (!isTimerRunning) return
 
+        // 1. 抓取当前按下的格子底层的物理音名（如 A#）
         const boardNote = getNoteByPosition(stringIdx, fretIdx)
+
+        // 2. 🔊 无论对错，即时触发物理建模发生器，播放该品位准确弦高的吉他瞬态声音
+        playGuitarTone(stringIdx, boardNote)
+
+        // 3. 严格乐理判定：物理名字相等或异名同音相通
         const isCorrectPhysicalNote = (boardNote === currentNote || ACCIDENTAL_MAPPING[boardNote] === currentNote)
 
         if (isCorrectPhysicalNote) {
@@ -139,7 +148,9 @@ export const useGameStore = create<GameState>()(
             totalTimeSpentMs: isClear ? get().totalTimeSpentMs + timerMs : get().totalTimeSpentMs
           })
         } else {
-          set({ lastClickedFeedback: { stringIdx, fretIdx, status: 'wrong' } })
+          set({
+            lastClickedFeedback: { stringIdx, fretIdx, status: 'wrong' }
+          })
         }
       },
 
@@ -182,7 +193,7 @@ export const useGameStore = create<GameState>()(
           newStrings.push(stringIdx)
         }
         set({ activeStrings: newStrings })
-        get().nextQuestion()
+        get().nextQuestion() // 琴弦配置变动，立即洗牌冲刷出新题
       },
 
       resetGame: () => {
@@ -207,8 +218,8 @@ export const useGameStore = create<GameState>()(
       }
     }),
     {
-      name: 'fretboard-master-config', // 🔑 localStorage 中的 Key 键名
-      // 🎯 核心白名单过滤：只把用户配置存进缓存，像计时器、当前得分这些动态状态绝不污染缓存
+      name: 'fretboard-master-config', // 🔒 写入浏览器的缓存 Key
+      // 🎯 精准白名单过滤器：只持久化这三项用户设置，避免秒表或临时成绩污染缓存空间
       partialize: (state) => ({
         activeStrings: state.activeStrings,
         onlyNatural: state.onlyNatural,
