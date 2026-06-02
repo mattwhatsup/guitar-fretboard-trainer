@@ -127,7 +127,7 @@ export const useGameStore = create<GameState>()(
         const boardNote = getNoteByPosition(stringIdx, fretIdx)
 
         // 2. 🔊 无论对错，即时触发物理建模发生器，播放该品位准确弦高的吉他瞬态声音
-        playGuitarTone(stringIdx, boardNote)
+        playGuitarTone(stringIdx, fretIdx)
 
         // 3. 严格乐理判定：物理名字相等或异名同音相通
         const isCorrectPhysicalNote = (boardNote === currentNote || ACCIDENTAL_MAPPING[boardNote] === currentNote)
