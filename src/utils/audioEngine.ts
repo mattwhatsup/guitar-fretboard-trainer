@@ -13,7 +13,11 @@ export const playGuitarTone = (stringIdx: number, fretIdx: number) => {
     const safeFretIdx = Math.max(0, Math.min(12, fretIdx));
 
     if (!audioCtx) {
-      audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)();
+      if ('AudioContext' in window) {
+        audioCtx = new window.AudioContext();
+      } else if ('webkitAudioContext' in window) {
+        audioCtx = new (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext();
+      }
     }
     if (audioCtx.state === 'suspended') {
       audioCtx.resume();
