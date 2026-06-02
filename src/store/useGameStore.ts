@@ -3,10 +3,8 @@ import { persist } from 'zustand/middleware'
 import { getNoteByPosition } from '../utils/guitarLogic'
 import { playGuitarTone } from '../utils/audioEngine'
 
-// 1. 定义严谨的音名联合类型
 export type NoteName = "C" | "C#" | "D" | "D#" | "E" | "F" | "F#" | "G" | "G#" | "A" | "A#" | "B" | "Db" | "Eb" | "Gb" | "Ab" | "Bb";
 
-// 🎵 音符异名同音双向映射表，用于支持严格的“升降号倾向”比对与识别
 const ACCIDENTAL_MAPPING: Record<string, string> = {
   'C#': 'Db', 'Db': 'C#',
   'D#': 'Eb', 'Eb': 'D#',
@@ -16,6 +14,8 @@ const ACCIDENTAL_MAPPING: Record<string, string> = {
 };
 
 interface GameState {
+  // ⚙️ 核心模式
+  gameMode: 'training' | 'free' // 'training' 为训练模式，'free' 为自由演奏模式
   currentNote: NoteName
   activeStrings: number[]
   correctPositions: { stringIdx: number; fretIdx: number }[]
@@ -23,18 +23,19 @@ interface GameState {
   showAnswerMode: boolean
   gameStage: 'playing' | 'completed'
 
-  // ⏱️ 动态计时与反馈账本（这些属于临时状态，不需要且不应该持久化）
+  // ⏱️ 训练模式统计（自由模式下不计入）
   timerMs: number
   isTimerRunning: boolean
   totalPassed: number
   totalTimeSpentMs: number
   lastClickedFeedback: { stringIdx: number; fretIdx: number; status: 'correct' | 'wrong' | 'none' }
 
-  // ⚙️ 需要持久化的核心配置项
+  // ⚙️ 需要持久化的配置项
   onlyNatural: boolean
   accidentalMode: 'sharp' | 'flat' | 'mixed'
 
-  // 🕹️ 核心控制流方法
+  // 🕹️ 控制流方法
+  setGameMode: (mode: 'training' | 'free') => void
   initGame: () => void
   checkAnswer: (stringIdx: number, fretIdx: number) => void
   revealAllAnswers: () => void
@@ -46,35 +47,22 @@ interface GameState {
   setAccidentalMode: (mode: 'sharp' | 'flat' | 'mixed') => void
 }
 
-// 🎲 内部辅助：根据高级特训规则，随机抽调下一个合法的音符任务
 const drawValidNote = (onlyNatural: boolean, mode: 'sharp' | 'flat' | 'mixed'): NoteName => {
   const naturalPool: NoteName[] = ['C', 'D', 'E', 'F', 'G', 'A', 'B']
   const sharpPool: NoteName[] = ['C#', 'D#', 'F#', 'G#', 'A#']
   const flatPool: NoteName[] = ['Db', 'Eb', 'Gb', 'Ab', 'Bb']
 
-  if (onlyNatural) {
-    return naturalPool[Math.floor(Math.random() * naturalPool.length)]
-  }
-
-  if (mode === 'sharp') {
-    const fullSharp = [...naturalPool, ...sharpPool]
-    return fullSharp[Math.floor(Math.random() * fullSharp.length)]
-  } else if (mode === 'flat') {
-    const fullFlat = [...naturalPool, ...flatPool]
-    return fullFlat[Math.floor(Math.random() * fullFlat.length)]
-  } else {
-    const fullMixed = [...naturalPool, ...sharpPool, ...flatPool]
-    return fullMixed[Math.floor(Math.random() * fullMixed.length)]
-  }
+  if (onlyNatural) return naturalPool[Math.floor(Math.random() * naturalPool.length)]
+  if (mode === 'sharp') return [...naturalPool, ...sharpPool][Math.floor(Math.random() * (naturalPool.length + sharpPool.length))]
+  if (mode === 'flat') return [...naturalPool, ...flatPool][Math.floor(Math.random() * (naturalPool.length + flatPool.length))]
+  return [...naturalPool, ...sharpPool, ...flatPool][Math.floor(Math.random() * (naturalPool.length + sharpPool.length + flatPool.length))]
 }
 
-// 🎯 内部辅助：动态扫描当前被激活的琴弦，计算出目标音符在指板（0-11品）上所有的正确坐标
 const getNoteTargets = (note: NoteName, strings: number[]) => {
   const targets: { stringIdx: number; fretIdx: number }[] = []
   strings.forEach((stringIdx) => {
     for (let fretIdx = 0; fretIdx <= 11; fretIdx++) {
       const boardNote = getNoteByPosition(stringIdx, fretIdx)
-      // 兼容异名同音匹配逻辑：物理名一致，或者在乐理转化表中映射一致（例如题目叫 Bb，指板底层名返回 A#）
       if (boardNote === note || ACCIDENTAL_MAPPING[boardNote] === note) {
         targets.push({ stringIdx, fretIdx })
       }
@@ -86,6 +74,7 @@ const getNoteTargets = (note: NoteName, strings: number[]) => {
 export const useGameStore = create<GameState>()(
   persist(
     (set, get) => ({
+      gameMode: 'training', // 默认训练模式
       currentNote: 'C',
       activeStrings: [0, 1, 2, 3, 4, 5],
       correctPositions: [],
@@ -101,9 +90,18 @@ export const useGameStore = create<GameState>()(
       onlyNatural: false,
       accidentalMode: 'mixed',
 
+      setGameMode: (mode) => {
+        set({ gameMode: mode })
+        if (mode === 'training') {
+          get().nextQuestion() // 切换到训练模式时，刷出一张新题并启动计时
+        } else {
+          // 切换到自由模式，关闭时钟
+          set({ isTimerRunning: false, gameStage: 'playing' })
+        }
+      },
+
       initGame: () => {
-        // 自动拉取已经从 localStorage 加载回来的持久化配置
-        const { onlyNatural, accidentalMode, activeStrings } = get()
+        const { onlyNatural, accidentalMode, activeStrings, gameMode } = get()
         const note = drawValidNote(onlyNatural, accidentalMode)
         const targets = getNoteTargets(note, activeStrings)
 
@@ -114,22 +112,23 @@ export const useGameStore = create<GameState>()(
           showAnswerMode: false,
           gameStage: 'playing',
           timerMs: 0,
-          isTimerRunning: true,
+          isTimerRunning: gameMode === 'training', // 🛠️ 只有训练模式启动时钟
           lastClickedFeedback: { stringIdx: 0, fretIdx: 0, status: 'none' }
         })
       },
 
       checkAnswer: (stringIdx, fretIdx) => {
-        const { currentNote, correctPositions, totalTargetCount, isTimerRunning, timerMs } = get()
-        if (!isTimerRunning) return
+        const { currentNote, correctPositions, totalTargetCount, gameMode, isTimerRunning, timerMs } = get()
 
-        // 1. 抓取当前按下的格子底层的物理音名（如 A#）
-        const boardNote = getNoteByPosition(stringIdx, fretIdx)
-
-        // 2. 🔊 无论对错，即时触发物理建模发生器，播放该品位准确弦高的吉他瞬态声音
+        // 🔊 无论什么模式，按键立刻发声
         playGuitarTone(stringIdx, fretIdx)
 
-        // 3. 严格乐理判定：物理名字相等或异名同音相通
+        // 🛠️ 核心改进：如果是自由模式，不参与对错判断，直接退出
+        if (gameMode === 'free') return
+
+        if (!isTimerRunning) return
+
+        const boardNote = getNoteByPosition(stringIdx, fretIdx)
         const isCorrectPhysicalNote = (boardNote === currentNote || ACCIDENTAL_MAPPING[boardNote] === currentNote)
 
         if (isCorrectPhysicalNote) {
@@ -143,14 +142,12 @@ export const useGameStore = create<GameState>()(
             correctPositions: newCorrects,
             lastClickedFeedback: { stringIdx, fretIdx, status: 'correct' },
             gameStage: isClear ? 'completed' : 'playing',
-            isTimerRunning: !isClear,
+            isTimerRunning: !isClear, // 找全后停止计时，等待玩家手动下一题
             totalPassed: isClear ? get().totalPassed + 1 : get().totalPassed,
             totalTimeSpentMs: isClear ? get().totalTimeSpentMs + timerMs : get().totalTimeSpentMs
           })
         } else {
-          set({
-            lastClickedFeedback: { stringIdx, fretIdx, status: 'wrong' }
-          })
+          set({ lastClickedFeedback: { stringIdx, fretIdx, status: 'wrong' } })
         }
       },
 
@@ -166,7 +163,7 @@ export const useGameStore = create<GameState>()(
       },
 
       nextQuestion: () => {
-        const { onlyNatural, accidentalMode, activeStrings } = get()
+        const { onlyNatural, accidentalMode, activeStrings, gameMode } = get()
         const note = drawValidNote(onlyNatural, accidentalMode)
         const targets = getNoteTargets(note, activeStrings)
 
@@ -177,7 +174,7 @@ export const useGameStore = create<GameState>()(
           showAnswerMode: false,
           gameStage: 'playing',
           timerMs: 0,
-          isTimerRunning: true,
+          isTimerRunning: gameMode === 'training', // 🛠️ 仅训练模式开启计时器
           lastClickedFeedback: { stringIdx: 0, fretIdx: 0, status: 'none' }
         })
       },
@@ -186,41 +183,43 @@ export const useGameStore = create<GameState>()(
         const { activeStrings } = get()
         let newStrings = [...activeStrings]
         if (newStrings.includes(stringIdx)) {
-          if (newStrings.length > 1) {
-            newStrings = newStrings.filter(s => s !== stringIdx)
-          }
+          if (newStrings.length > 1) newStrings = newStrings.filter(s => s !== stringIdx)
         } else {
           newStrings.push(stringIdx)
         }
         set({ activeStrings: newStrings })
-        get().nextQuestion() // 琴弦配置变动，立即洗牌冲刷出新题
+
+        // 🛠️ 核心改进：自由模式下切琴弦不需要强行刷出新题
+        if (get().gameMode === 'training') {
+          get().nextQuestion()
+        }
       },
 
       resetGame: () => {
         set({ totalPassed: 0, totalTimeSpentMs: 0 })
-        get().nextQuestion()
+        if (get().gameMode === 'training') get().nextQuestion()
       },
 
       incrementTimer: (delta) => {
-        if (get().isTimerRunning) {
+        if (get().isTimerRunning && get().gameMode === 'training') {
           set((state) => ({ timerMs: state.timerMs + delta }))
         }
       },
 
       setOnlyNatural: (val) => {
         set({ onlyNatural: val })
-        get().nextQuestion()
+        if (get().gameMode === 'training') get().nextQuestion()
       },
 
       setAccidentalMode: (mode) => {
         set({ accidentalMode: mode })
-        get().nextQuestion()
+        if (get().gameMode === 'training') get().nextQuestion()
       }
     }),
     {
-      name: 'fretboard-master-config', // 🔒 写入浏览器的缓存 Key
-      // 🎯 精准白名单过滤器：只持久化这三项用户设置，避免秒表或临时成绩污染缓存空间
+      name: 'fretboard-master-config',
       partialize: (state) => ({
+        gameMode: state.gameMode, // 🔒 缓存模式状态
         activeStrings: state.activeStrings,
         onlyNatural: state.onlyNatural,
         accidentalMode: state.accidentalMode,
