@@ -35,6 +35,7 @@ export const Fretboard: React.FC = () => {
     {},
   )
 
+  // ⏱️ 毫秒高频时钟脉搏
   useEffect(() => {
     let lastTime = performance.now()
     let frameId: number
@@ -54,6 +55,7 @@ export const Fretboard: React.FC = () => {
     return () => cancelAnimationFrame(frameId)
   }, [isTimerRunning, incrementTimer])
 
+  // ❌ 错误红圈闪烁反馈
   useEffect(() => {
     if (lastClickedFeedback.status === 'wrong') {
       setErrorTrigger({
@@ -65,17 +67,37 @@ export const Fretboard: React.FC = () => {
     }
   }, [lastClickedFeedback])
 
+  // ====================================================================
+  // ⌨️ 键盘【空格】与【回车】快捷键监听（无痕去焦点改进版）
+  // ====================================================================
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (gameStage === 'completed') {
+        if (event.key === ' ' || event.key === 'Enter') {
+          event.preventDefault()
+
+          // 🛠️ 核心微调：让当前页面上可能意外获得焦点的任意元素主动失焦（Blur）
+          if (document.activeElement instanceof HTMLElement) {
+            document.activeElement.blur()
+          }
+
+          nextQuestion()
+        }
+      }
+    }
+
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [gameStage, nextQuestion])
+
   const averageTimeMs =
     totalPassed > 0 ? Math.round(totalTimeSpentMs / totalPassed) : 0
   const isCompleted = gameStage === 'completed'
 
   return (
-    // 📱 外层大包装：通过 px-2 和 overflow-x-auto，在小手机上允许丝滑的横向手势滚动/拖拽，杜绝卡出屏幕 Bug
-    <div className="w-full overflow-x-auto py-4 md:py-8 px-2 scrollbar-thin scroll-smooth">
+    <div className="w-full overflow-x-auto py-4 md:py-8 px-2 scrollbar-thin scroll-smooth select-none">
       <div className="min-w-[920px] max-w-5xl mx-auto space-y-4">
-        {/* ==================================================================== */}
-        {/* 📊 速度成绩看板（等比对齐版本，在窄屏下依旧保持紧凑横排） */}
-        {/* ==================================================================== */}
+        {/* 📊 速度成绩看板 */}
         <div className="grid grid-cols-4 gap-2 md:gap-4 p-3 md:p-4 bg-zinc-950 border border-zinc-800 rounded-2xl shadow-inner text-center items-center">
           <div>
             <div className="text-[10px] uppercase font-bold tracking-wider text-zinc-500 mb-0.5">
@@ -103,20 +125,32 @@ export const Fretboard: React.FC = () => {
             </div>
           </div>
           <div className="flex items-center justify-center gap-2">
+            {/* 🛠️ 增加了 focus:outline-none 彻底扼杀点击外轮廓框 */}
             <button
-              onClick={resetGame}
-              className="px-2.5 py-1.5 text-xs font-bold text-zinc-500 border border-zinc-800 bg-zinc-900/50 rounded-xl hover:bg-rose-950/20 hover:text-rose-400 hover:border-rose-950 transition-all active:scale-95 whitespace-nowrap"
+              onClick={(e) => {
+                resetGame()
+                e.currentTarget.blur()
+              }}
+              className="px-2.5 py-1.5 text-xs font-bold text-zinc-500 border border-zinc-800 bg-zinc-900/50 rounded-xl hover:bg-rose-950/20 hover:text-rose-400 hover:border-rose-950 transition-all active:scale-95 whitespace-nowrap focus:outline-none focus:ring-0"
             >
               🔄 清零
             </button>
-            {isCompleted && (
-              <button
-                onClick={nextQuestion}
-                className="px-4 py-1.5 bg-indigo-600 hover:bg-indigo-500 active:scale-95 text-white text-xs font-bold rounded-xl shadow-md shadow-indigo-600/20 transition-all animate-pulse whitespace-nowrap"
-              >
-                挑战下一音符 →
-              </button>
-            )}
+            <button
+              onClick={(e) => {
+                nextQuestion()
+                e.currentTarget.blur()
+              }}
+              disabled={!isCompleted}
+              className={`px-4 py-1.5 text-xs font-bold rounded-xl transition-all whitespace-nowrap shadow-md focus:outline-none focus:ring-0
+                ${
+                  isCompleted
+                    ? 'bg-indigo-600 hover:bg-indigo-500 active:scale-95 text-white shadow-indigo-600/20 animate-pulse'
+                    : 'bg-zinc-900 border border-zinc-800/80 text-zinc-600 opacity-40 cursor-not-allowed shadow-none'
+                }
+              `}
+            >
+              挑战下一音符 →
+            </button>
           </div>
         </div>
 
@@ -132,31 +166,38 @@ export const Fretboard: React.FC = () => {
           {!isCompleted ? (
             <div className="flex items-center gap-2">
               <button
-                onClick={revealAllAnswers}
+                onClick={(e) => {
+                  revealAllAnswers()
+                  e.currentTarget.blur()
+                }}
                 disabled={showAnswerMode}
-                className="px-3 py-1 text-xs font-medium text-zinc-400 bg-zinc-900 border border-zinc-800 rounded-lg hover:text-zinc-200 hover:bg-zinc-800 disabled:opacity-40 disabled:cursor-not-allowed transition-all shadow-sm"
+                className="px-3 py-1 text-xs font-medium text-zinc-400 bg-zinc-900 border border-zinc-800 rounded-lg hover:text-zinc-200 hover:bg-zinc-800 disabled:opacity-40 disabled:cursor-not-allowed transition-all shadow-sm focus:outline-none"
               >
                 💡 正确答案
               </button>
               <button
-                onClick={nextQuestion}
-                className="px-3 py-1 text-xs font-medium text-zinc-400 bg-zinc-900 border border-zinc-800 rounded-lg hover:text-indigo-400 transition-all shadow-sm"
+                onClick={(e) => {
+                  nextQuestion()
+                  e.currentTarget.blur()
+                }}
+                className="px-3 py-1 text-xs font-medium text-zinc-400 bg-zinc-900 border border-zinc-800 rounded-lg hover:text-indigo-400 transition-all shadow-sm focus:outline-none"
               >
                 ⏭️ 跳过
               </button>
             </div>
           ) : (
-            <div className="text-xs font-bold text-emerald-400/80 tracking-wide animate-fade-in">
-              🎯 STAGE CLEAR
+            <div className="text-xs font-bold text-emerald-400/80 tracking-wide animate-fade-in flex items-center gap-2">
+              🎯 STAGE CLEAR{' '}
+              <span className="text-[10px] text-zinc-500 font-normal">
+                ( ⌨️ 按下 <b>Space</b> 或 <b>Enter</b> 刷入下一题 )
+              </span>
             </div>
           )}
         </div>
 
-        {/* ==================================================================== */}
-        {/* 🎸 纯粹等比例完整指板布局（通过无极对齐，比例绝对不缩水崩塌） */}
-        {/* ==================================================================== */}
+        {/* 🎸 等比例指板主体结构 */}
         <div className="flex items-stretch justify-center select-none w-full">
-          {/* 左侧：0 品（空弦） */}
+          {/* 左侧：0 品 */}
           <div className="flex flex-col justify-between pt-[2.5%] pb-[2.5%] w-12 bg-zinc-900 border-y border-l border-zinc-700 rounded-l-xl shadow-lg mr-1 p-1 gap-y-1">
             {[...Array(6)].map((_, stringIdx) => {
               const noteName = getNoteByPosition(stringIdx, 0)
@@ -171,8 +212,11 @@ export const Fretboard: React.FC = () => {
                 <button
                   key={stringIdx}
                   disabled={showAnswerMode || !isStringActive}
-                  onClick={() => checkAnswer(stringIdx, 0)}
-                  className={`h-8 w-full flex items-center justify-center relative rounded-md transition-all text-xs font-semibold
+                  onClick={(e) => {
+                    checkAnswer(stringIdx, 0)
+                    e.currentTarget.blur()
+                  }}
+                  className={`h-8 w-full flex items-center justify-center relative rounded-md transition-all text-xs font-semibold focus:outline-none focus:ring-0
                     ${isStringActive ? 'hover:bg-amber-600/10 text-amber-500' : 'opacity-10 cursor-not-allowed text-zinc-600'}
                   `}
                 >
@@ -233,8 +277,11 @@ export const Fretboard: React.FC = () => {
                         <button
                           key={fretIdx}
                           disabled={showAnswerMode}
-                          onClick={() => checkAnswer(stringIdx, fretIdx)}
-                          className="h-full flex-1 flex items-center justify-center relative z-10 group"
+                          onClick={(e) => {
+                            checkAnswer(stringIdx, fretIdx)
+                            e.currentTarget.blur()
+                          }}
+                          className="h-full flex-1 flex items-center justify-center relative z-10 group focus:outline-none focus:ring-0"
                         >
                           {!showAnswerMode && (
                             <div className="absolute w-[82%] h-[82%] rounded-md border border-transparent group-hover:bg-zinc-500/10 group-hover:border-indigo-500/20 transition-all pointer-events-none" />
@@ -263,7 +310,7 @@ export const Fretboard: React.FC = () => {
             </div>
           </div>
 
-          {/* 右侧：纯粹的无文字对齐 Checkbox 面板 */}
+          {/* 右侧：复选开关 */}
           <div className="flex flex-col justify-between pt-[2.5%] pb-[2.5%] w-12 bg-zinc-900 border-y border-r border-zinc-700 rounded-r-xl shadow-lg ml-1 p-1 gap-y-1 items-center">
             {[...Array(6)].map((_, stringIdx) => {
               const isChecked = activeStrings.includes(stringIdx)
@@ -279,7 +326,7 @@ export const Fretboard: React.FC = () => {
                     checked={isChecked}
                     disabled={isDisableCheckbox}
                     onChange={() => toggleString(stringIdx)}
-                    className="w-4 h-4 rounded border-zinc-700 bg-zinc-800 text-indigo-600 focus:ring-0 focus:ring-offset-0 cursor-pointer disabled:cursor-not-allowed transition-all"
+                    className="w-4 h-4 rounded border-zinc-700 bg-zinc-800 text-indigo-600 focus:ring-0 focus:ring-offset-0 cursor-pointer disabled:cursor-not-allowed transition-all focus:outline-none"
                   />
                 </label>
               )
