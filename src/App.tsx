@@ -18,32 +18,6 @@ export default function App() {
         <h1 className="text-3xl font-extrabold tracking-tight bg-linear-to-r from-indigo-400 to-emerald-400 bg-clip-text text-transparent mb-6">
           Fretboard Master / 吉他指板记忆训练
         </h1>
-
-        {/* 玻璃拟态数据面板 */}
-        <div className="grid grid-cols-3 gap-4 max-w-md mx-auto bg-zinc-900/50 border border-zinc-800 rounded-2xl p-4 backdrop-blur-md shadow-lg">
-          <div>
-            <p className="text-xs text-zinc-400 uppercase tracking-wider">
-              正确得分
-            </p>
-            <p className="text-2xl font-bold text-emerald-400 mt-1">{score}</p>
-          </div>
-          <div>
-            <p className="text-xs text-zinc-400 uppercase tracking-wider">
-              总尝试
-            </p>
-            <p className="text-2xl font-bold text-zinc-200 mt-1">
-              {totalAttempts}
-            </p>
-          </div>
-          <div>
-            <p className="text-xs text-zinc-400 uppercase tracking-wider">
-              正确率
-            </p>
-            <p className="text-2xl font-bold text-indigo-400 mt-1">
-              {accuracy}%
-            </p>
-          </div>
-        </div>
       </header>
 
       {/* 中部：核心游戏交互区 */}
@@ -61,38 +35,23 @@ export default function App() {
         {/* 吉他指板组件 */}
         <Fretboard />
 
-        {/* 答题后的反馈与下一题按钮 */}
-        <div className="h-16 flex items-center justify-center w-full">
+        {/* 底部纯文本通知广播站 */}
+        <div className="h-16 flex items-center justify-center w-full select-none">
           {gameStage === 'completed' ? (
-            <div className="flex flex-col items-center gap-3 animate-slide-up">
-              <p className="text-lg font-semibold text-emerald-400">
-                🎉 太强了！你把全指板所有的 {currentNote} 音都找齐了！
+            <div className="text-center animate-slide-up">
+              <p className="text-sm font-semibold text-zinc-300">
+                {useGameStore.getState().showAnswerMode
+                  ? `💡 已渲染全套答案，请移动视线至上方成绩栏开启新挑战。`
+                  : `🎉 找齐全部目标！本次盲操精确定格在：${(useGameStore.getState().timerMs / 1000).toFixed(3)} 秒！`}
               </p>
-              <button
-                onClick={nextQuestion}
-                className="px-6 py-2 bg-indigo-600 hover:bg-indigo-500 active:translate-y-0.5 text-white font-medium rounded-xl shadow-lg shadow-indigo-600/30 transition-all"
-              >
-                挑战下一个音符 →
-              </button>
             </div>
           ) : (
             <p className="text-xs text-zinc-500 italic">
-              小提示：找出全指板（0-11品）中所有的“{currentNote}
-              ”，漏掉一个都不能通关哦！
+              ⚡ 速度流计时赛进行中... 请立即点按全指板中所有的 “{currentNote}”
             </p>
           )}
         </div>
       </main>
-
-      {/* 底部：辅助控制与重置 */}
-      <footer className="w-full text-center pb-4">
-        <button
-          onClick={resetGame}
-          className="text-xs text-zinc-500 hover:text-zinc-300 underline underline-offset-4 transition-colors"
-        >
-          重置所有统计数据
-        </button>
-      </footer>
     </div>
   )
 }

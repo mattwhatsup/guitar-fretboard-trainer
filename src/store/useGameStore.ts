@@ -8,27 +8,32 @@ interface ClickedPosition {
 
 interface GameState {
   currentNote: string;
-  score: number;
-  totalAttempts: number;
   correctPositions: ClickedPosition[];
   totalTargetCount: number;
   gameStage: 'playing' | 'completed';
   showAnswerMode: boolean;
-  activeStrings: number[];            // 🛠️ 新增：当前参与训练的弦（0代表1弦，5代表6弦）
+  activeStrings: number[];
+
+  // ⏱️ 速度特训赛状态：升级为毫秒级
+  timerMs: number;                    // 当前题目已用毫秒数
+  isTimerRunning: boolean;            // 计时器是否在跑
+  totalPassed: number;                // 凭实力通关的总次数
+  totalTimeSpentMs: number;           // 通关题目的累计总用时（毫秒）
+
   lastClickedFeedback: {
     status: 'correct' | 'wrong' | 'idle';
     stringIdx?: number;
     fretIdx?: number;
   };
 
+  incrementTimer: (ms: number) => void; // 🛠️ 递增毫秒数
   checkAnswer: (stringIdx: number, fretIdx: number) => void;
   revealAllAnswers: () => void;
   nextQuestion: () => void;
   resetGame: () => void;
-  toggleString: (stringIdx: number) => void; // 🛠️ 新增：切换某条弦的选中状态
+  toggleString: (stringIdx: number) => void;
 }
 
-// 💡 辅助函数修改：计算音符总数时，只统计被勾选的琴弦 (activeStrings)
 const countTargetNoteInActiveStrings = (note: string, activeStrings: number[]): number => {
   let count = 0;
   activeStrings.forEach((s) => {
@@ -42,15 +47,12 @@ const countTargetNoteInActiveStrings = (note: string, activeStrings: number[]): 
 };
 
 export const useGameStore = create<GameState>((set) => {
-  // 默认 6 条弦全选 [0, 1, 2, 3, 4, 5]
   const defaultStrings = [0, 1, 2, 3, 4, 5];
   const initialNote = getRandomNote();
   const initialCount = countTargetNoteInActiveStrings(initialNote, defaultStrings);
 
   return {
     currentNote: initialNote,
-    score: 0,
-    totalAttempts: 0,
     correctPositions: [],
     totalTargetCount: initialCount,
     gameStage: 'playing',
@@ -58,8 +60,18 @@ export const useGameStore = create<GameState>((set) => {
     activeStrings: defaultStrings,
     lastClickedFeedback: { status: 'idle' },
 
+    timerMs: 0,
+    isTimerRunning: true,
+    totalPassed: 0,
+    totalTimeSpentMs: 0,
+
+    // 高频累加时间
+    incrementTimer: (ms) => set((state) => {
+      if (!state.isTimerRunning) return {};
+      return { timerMs: state.timerMs + ms };
+    }),
+
     checkAnswer: (stringIdx, fretIdx) => set((state) => {
-      // 如果点击了未勾选的弦、或者已经通关、或者看答案中、或者点击了12品，不响应
       if (
         !state.activeStrings.includes(stringIdx) ||
         state.gameStage === 'completed' ||
@@ -84,8 +96,11 @@ export const useGameStore = create<GameState>((set) => {
         return {
           correctPositions: newPositions,
           gameStage: isAllCompleted ? 'completed' : 'playing',
-          score: isAllCompleted ? state.score + 1 : state.score,
-          totalAttempts: isAllCompleted ? state.totalAttempts + 1 : state.totalAttempts,
+          // 毫秒级锁定定格
+          isTimerRunning: !isAllCompleted,
+          totalPassed: isAllCompleted ? state.totalPassed + 1 : state.totalPassed,
+          totalTimeSpentMs: isAllCompleted ? state.totalTimeSpentMs + state.timerMs : state.totalTimeSpentMs,
+
           lastClickedFeedback: { status: 'correct', stringIdx, fretIdx }
         };
       } else {
@@ -110,7 +125,8 @@ export const useGameStore = create<GameState>((set) => {
       return {
         correctPositions: allAnswers,
         showAnswerMode: true,
-        gameStage: 'completed'
+        gameStage: 'completed',
+        isTimerRunning: false // 看答案直接中断当前计时，且不计入成绩
       };
     }),
 
@@ -122,7 +138,9 @@ export const useGameStore = create<GameState>((set) => {
         correctPositions: [],
         gameStage: 'playing',
         showAnswerMode: false,
-        lastClickedFeedback: { status: 'idle' }
+        lastClickedFeedback: { status: 'idle' },
+        timerMs: 0,
+        isTimerRunning: true
       };
     }),
 
@@ -131,36 +149,36 @@ export const useGameStore = create<GameState>((set) => {
       set({
         currentNote: nextNote,
         totalTargetCount: countTargetNoteInActiveStrings(nextNote, defaultStrings),
-        score: 0,
-        totalAttempts: 0,
         correctPositions: [],
         gameStage: 'playing',
         showAnswerMode: false,
         activeStrings: defaultStrings,
-        lastClickedFeedback: { status: 'idle' }
+        lastClickedFeedback: { status: 'idle' },
+        timerMs: 0,
+        isTimerRunning: true,
+        totalPassed: 0,
+        totalTimeSpentMs: 0
       });
     },
 
-    // 🛠️ 动作：切换琴弦勾选状态
     toggleString: (stringIdx) => set((state) => {
       let newActiveStrings = [...state.activeStrings];
-
       if (newActiveStrings.includes(stringIdx)) {
-        // 如果最少要剩 1 条，则当数组长度为 1 时不让继续取消
         if (newActiveStrings.length === 1) return {};
         newActiveStrings = newActiveStrings.filter((s) => s !== stringIdx);
       } else {
         newActiveStrings.push(stringIdx);
       }
 
-      // 切换琴弦后，因为当前的关卡目标数变了，直接根据新弦组刷新当前题目
       return {
         activeStrings: newActiveStrings,
         correctPositions: [],
         gameStage: 'playing',
         showAnswerMode: false,
         totalTargetCount: countTargetNoteInActiveStrings(state.currentNote, newActiveStrings),
-        lastClickedFeedback: { status: 'idle' }
+        lastClickedFeedback: { status: 'idle' },
+        timerMs: 0,
+        isTimerRunning: true
       };
     })
   };
