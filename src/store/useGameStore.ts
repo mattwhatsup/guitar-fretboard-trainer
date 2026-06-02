@@ -74,7 +74,7 @@ const getNoteTargets = (note: NoteName, strings: number[]) => {
 export const useGameStore = create<GameState>()(
   persist(
     (set, get) => ({
-      gameMode: 'training', // 默认训练模式
+      gameMode: 'free', // 默认训练模式
       currentNote: 'C',
       activeStrings: [0, 1, 2, 3, 4, 5],
       correctPositions: [],
