@@ -9,6 +9,7 @@ export const NoteDisplay = () => {
     setOnlyNatural,
     setAccidentalMode,
     gameMode,
+    isTimerRunning,
   } = useGameStore()
 
   // 🛠️ 核心改进：如果是自由演奏模式，出题面板原地隐身，不干扰视线
@@ -18,13 +19,14 @@ export const NoteDisplay = () => {
     // 🛠️ 关键修正：加入 mx-auto 确保卡片本身在 max-w-2xl 限制下在整个页面绝对居中
     <div className="flex flex-col sm:flex-row items-center justify-between gap-4 md:gap-6 mb-4 select-none w-full max-w-2xl mx-auto bg-zinc-950/40 border border-zinc-800/50 p-4 rounded-2xl shadow-inner">
       {/* 🎯 左侧：题目与超大亮眼音名 */}
+
       <div className="flex items-center gap-3 justify-center w-full sm:w-auto">
         <span className="text-zinc-400 text-xs md:text-sm font-bold tracking-wider uppercase">
           查找目标：
         </span>
         {/* 💡 放大并突出了音名，增加了呼吸感的阴影，让它像一个真正的关卡卡片 */}
         <div className="text-4xl md:text-5xl font-black text-transparent bg-clip-text bg-gradient-to-r from-white via-zinc-200 to-zinc-400 drop-shadow-[0_2px_8px_rgba(255,255,255,0.15)] font-mono tracking-tighter bg-zinc-900 px-3 py-1 rounded-xl border border-zinc-800">
-          {currentNote}
+          {currentNote && isTimerRunning ? currentNote : 'N/A'}
         </div>
       </div>
 
