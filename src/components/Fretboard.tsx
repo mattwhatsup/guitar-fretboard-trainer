@@ -11,6 +11,24 @@ const formatTime = (totalMs: number) => {
   return `${pad(minutes)}:${pad(seconds)}.${pad(ms, 3)}`
 }
 
+// 🎵 视觉翻译官：将指板底层硬编码的升号名，翻译成完美的“升/降”双音名并排显示
+const getDisplayNoteName = (
+  rawNote: string,
+): { text: string; isAccidental: boolean } => {
+  const mapping: Record<string, string> = {
+    'C#': 'C#/Db',
+    'D#': 'D#/Eb',
+    'F#': 'F#/Gb',
+    'G#': 'G#/Ab',
+    'A#': 'A#/Bb',
+  }
+
+  if (mapping[rawNote]) {
+    return { text: mapping[rawNote], isAccidental: true }
+  }
+  return { text: rawNote, isAccidental: false }
+}
+
 export const Fretboard: React.FC = () => {
   const {
     correctPositions,
@@ -35,7 +53,7 @@ export const Fretboard: React.FC = () => {
     {},
   )
 
-  // ⏱️ 毫秒高频时钟脉搏
+  // ⏱️ 时钟脉搏
   useEffect(() => {
     let lastTime = performance.now()
     let frameId: number
@@ -55,7 +73,7 @@ export const Fretboard: React.FC = () => {
     return () => cancelAnimationFrame(frameId)
   }, [isTimerRunning, incrementTimer])
 
-  // ❌ 错误红圈闪烁反馈
+  // ❌ 错误反馈
   useEffect(() => {
     if (lastClickedFeedback.status === 'wrong') {
       setErrorTrigger({
@@ -67,25 +85,19 @@ export const Fretboard: React.FC = () => {
     }
   }, [lastClickedFeedback])
 
-  // ====================================================================
-  // ⌨️ 键盘【空格】与【回车】快捷键监听（无痕去焦点改进版）
-  // ====================================================================
+  // ⌨️ 键盘监听
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
       if (gameStage === 'completed') {
         if (event.key === ' ' || event.key === 'Enter') {
           event.preventDefault()
-
-          // 🛠️ 核心微调：让当前页面上可能意外获得焦点的任意元素主动失焦（Blur）
           if (document.activeElement instanceof HTMLElement) {
             document.activeElement.blur()
           }
-
           nextQuestion()
         }
       }
     }
-
     window.addEventListener('keydown', handleKeyDown)
     return () => window.removeEventListener('keydown', handleKeyDown)
   }, [gameStage, nextQuestion])
@@ -125,13 +137,12 @@ export const Fretboard: React.FC = () => {
             </div>
           </div>
           <div className="flex items-center justify-center gap-2">
-            {/* 🛠️ 增加了 focus:outline-none 彻底扼杀点击外轮廓框 */}
             <button
               onClick={(e) => {
                 resetGame()
                 e.currentTarget.blur()
               }}
-              className="px-2.5 py-1.5 text-xs font-bold text-zinc-500 border border-zinc-800 bg-zinc-900/50 rounded-xl hover:bg-rose-950/20 hover:text-rose-400 hover:border-rose-950 transition-all active:scale-95 whitespace-nowrap focus:outline-none focus:ring-0"
+              className="px-2.5 py-1.5 text-xs font-bold text-zinc-500 border border-zinc-800 bg-zinc-900/50 rounded-xl hover:bg-rose-950/20 hover:text-rose-400 hover:border-rose-950 transition-all active:scale-95 whitespace-nowrap focus:outline-none"
             >
               🔄 清零
             </button>
@@ -141,7 +152,7 @@ export const Fretboard: React.FC = () => {
                 e.currentTarget.blur()
               }}
               disabled={!isCompleted}
-              className={`px-4 py-1.5 text-xs font-bold rounded-xl transition-all whitespace-nowrap shadow-md focus:outline-none focus:ring-0
+              className={`px-4 py-1.5 text-xs font-bold rounded-xl transition-all whitespace-nowrap shadow-md focus:outline-none
                 ${
                   isCompleted
                     ? 'bg-indigo-600 hover:bg-indigo-500 active:scale-95 text-white shadow-indigo-600/20 animate-pulse'
@@ -200,7 +211,8 @@ export const Fretboard: React.FC = () => {
           {/* 左侧：0 品 */}
           <div className="flex flex-col justify-between pt-[2.5%] pb-[2.5%] w-12 bg-zinc-900 border-y border-l border-zinc-700 rounded-l-xl shadow-lg mr-1 p-1 gap-y-1">
             {[...Array(6)].map((_, stringIdx) => {
-              const noteName = getNoteByPosition(stringIdx, 0)
+              const rawNote = getNoteByPosition(stringIdx, 0)
+              const displayInfo = getDisplayNoteName(rawNote) // 🛠️ 获取异名同音双显配置
               const isFound = correctPositions.some(
                 (p) => p.stringIdx === stringIdx && p.fretIdx === 0,
               )
@@ -216,12 +228,14 @@ export const Fretboard: React.FC = () => {
                     checkAnswer(stringIdx, 0)
                     e.currentTarget.blur()
                   }}
-                  className={`h-8 w-full flex items-center justify-center relative rounded-md transition-all text-xs font-semibold focus:outline-none focus:ring-0
+                  className={`h-8 w-full flex items-center justify-center relative rounded-md transition-all text-xs font-semibold focus:outline-none
                     ${isStringActive ? 'hover:bg-amber-600/10 text-amber-500' : 'opacity-10 cursor-not-allowed text-zinc-600'}
                   `}
                 >
+                  {/* 🛠️ 对文字大小进行了条件级精细控制：如果是复合音名(如 G#/Ab)，字体缩至极细致的 text-[10px] */}
                   <div
-                    className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-black transition-all duration-200 shadow-md absolute z-20
+                    className={`w-8 h-8 rounded-full flex items-center justify-center font-black transition-all duration-200 shadow-md absolute z-20 px-0.5 tracking-tighter
+                    ${displayInfo.isAccidental ? 'text-[10px]' : 'text-sm'}
                     ${
                       isFound
                         ? showAnswerMode
@@ -233,7 +247,7 @@ export const Fretboard: React.FC = () => {
                     }
                   `}
                   >
-                    {isFound ? noteName : ''}
+                    {isFound ? displayInfo.text : ''}
                   </div>
                   <span className={isFound ? 'opacity-0' : 'opacity-80'}>
                     {isStringActive ? '0品' : '✕'}
@@ -255,7 +269,8 @@ export const Fretboard: React.FC = () => {
                     className={`flex items-center h-[12%] w-full justify-between transition-opacity duration-200 ${!isStringActive ? 'opacity-15 pointer-events-none' : ''}`}
                   >
                     {IMAGE_FRETS.map((fretIdx) => {
-                      const noteName = getNoteByPosition(stringIdx, fretIdx)
+                      const rawNote = getNoteByPosition(stringIdx, fretIdx)
+                      const displayInfo = getDisplayNoteName(rawNote) // 🛠️ 获取异名同音双显配置
                       const isFound = correctPositions.some(
                         (p) =>
                           p.stringIdx === stringIdx && p.fretIdx === fretIdx,
@@ -281,13 +296,15 @@ export const Fretboard: React.FC = () => {
                             checkAnswer(stringIdx, fretIdx)
                             e.currentTarget.blur()
                           }}
-                          className="h-full flex-1 flex items-center justify-center relative z-10 group focus:outline-none focus:ring-0"
+                          className="h-full flex-1 flex items-center justify-center relative z-10 group focus:outline-none"
                         >
                           {!showAnswerMode && (
                             <div className="absolute w-[82%] h-[82%] rounded-md border border-transparent group-hover:bg-zinc-500/10 group-hover:border-indigo-500/20 transition-all pointer-events-none" />
                           )}
+                          {/* 🛠️ 同样针对变化音音符注入 displayInfo.isAccidental ? 'text-[10px]' : 'text-sm'，并增加 tracking-tighter 防止斜杠换行 */}
                           <div
-                            className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-black transition-all duration-200 shadow-md absolute
+                            className={`w-8 h-8 rounded-full flex items-center justify-center font-black transition-all duration-200 shadow-md absolute px-0.5 tracking-tighter whitespace-nowrap
+                            ${displayInfo.isAccidental ? 'text-[9px] md:text-[10px]' : 'text-xs md:text-sm'}
                             ${
                               isFound
                                 ? showAnswerMode
@@ -299,7 +316,7 @@ export const Fretboard: React.FC = () => {
                             }
                           `}
                           >
-                            {isFound ? noteName : ''}
+                            {isFound ? displayInfo.text : ''}
                           </div>
                         </button>
                       )
