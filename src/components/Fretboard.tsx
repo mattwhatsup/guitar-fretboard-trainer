@@ -20,7 +20,7 @@ const getDisplayNoteName = (
 
 export const Fretboard = () => {
   const {
-    instrument, // 🌟 完美注入乐器状态：'guitar' | 'ukulele'
+    instrument,
     gameMode,
     correctPositions,
     lastClickedFeedback,
@@ -41,10 +41,8 @@ export const Fretboard = () => {
     {},
   )
 
-  // 🌟 动态决定当前的琴弦总数
   const stringCount = instrument === 'guitar' ? 6 : 4
 
-  // ❌ 错误红饼反馈
   useEffect(() => {
     if (gameMode === 'training' && lastClickedFeedback.status === 'wrong') {
       setErrorTrigger({
@@ -56,7 +54,6 @@ export const Fretboard = () => {
     }
   }, [lastClickedFeedback, gameMode])
 
-  // ⌨️ 空格/回车 监听手动下一题
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
       if (gameMode === 'training') {
@@ -74,7 +71,6 @@ export const Fretboard = () => {
   }, [gameMode, nextQuestion])
 
   const handleFretClick = (stringIdx: number, fretIdx: number) => {
-    // 🌟 注入音频引擎联动，支持传参识别当前乐器发声频率
     playGuitarTone(instrument, stringIdx, fretIdx)
     checkAnswer(stringIdx, fretIdx)
 
@@ -92,10 +88,8 @@ export const Fretboard = () => {
   return (
     <div className="w-full overflow-x-auto py-2 md:py-4 px-2 scrollbar-thin select-none">
       <div className="min-w-[920px] max-w-5xl mx-auto space-y-4">
-        {/* 📊 看板区 */}
         <ScoreBoard />
 
-        {/* 提示与状态栏 */}
         <div className="flex items-center justify-between px-2 h-8">
           {gameMode === 'training' ? (
             <>
@@ -136,12 +130,10 @@ export const Fretboard = () => {
           )}
         </div>
 
-        {/* 🎸 指板网格 */}
         <div className="flex items-stretch justify-center w-full">
           {/* 左侧：0 品空弦音区 */}
           <div className="flex flex-col justify-between pt-[1.5%] pb-[1.5%] w-12 bg-zinc-900 border-y border-l border-zinc-700 rounded-l-xl p-1 gap-y-1">
             {[...Array(stringCount)].map((_, stringIdx) => {
-              // 🌟 传入 instrument，使其正确索引到吉他（EADGBE）或尤克里里（GCEA）的空弦
               const rawNote = getNoteByPosition(instrument, stringIdx, 0)
               const displayInfo = getDisplayNoteName(rawNote)
               const isStringActive =
@@ -159,7 +151,6 @@ export const Fretboard = () => {
               const isFreeActive =
                 gameMode === 'free' && freeHighlights[`${stringIdx}-0`]
 
-              // 🌟 完美支持原版的正确答案高亮模式展现
               const isTargetAnswer =
                 gameMode === 'training' &&
                 showAnswerMode &&
@@ -217,7 +208,6 @@ export const Fretboard = () => {
           </div>
 
           {/* 中间：1-12 品网格区 */}
-          {/* 🌟 核心改进：根据不同乐器动态应用图片、不重复渲染，同时切换尤克里里更窄的纵横比 (aspect-[866/220]) */}
           <div
             className="relative flex-1 bg-no-repeat bg-cover bg-center border-y border-zinc-700 transition-all duration-300"
             style={{
@@ -236,7 +226,6 @@ export const Fretboard = () => {
                     className={`flex items-center ${instrument === 'guitar' ? 'h-[12%]' : 'h-[20%]'} w-full justify-between transition-opacity duration-200 ${!isStringActive ? 'opacity-15 pointer-events-none' : ''}`}
                   >
                     {IMAGE_FRETS.map((fretIdx) => {
-                      // 🌟 传入 instrument
                       const rawNote = getNoteByPosition(
                         instrument,
                         stringIdx,
@@ -258,7 +247,6 @@ export const Fretboard = () => {
                         gameMode === 'free' &&
                         freeHighlights[`${stringIdx}-${fretIdx}`]
 
-                      // 🌟 完美同步支持你原项目中的答案提示逻辑
                       const isTargetAnswer =
                         gameMode === 'training' &&
                         showAnswerMode &&
@@ -323,24 +311,50 @@ export const Fretboard = () => {
             </div>
           </div>
 
-          {/* 右侧：琴弦开关区 */}
+          {/* 右侧：琴弦状态指示区（✨ 升级为 蓝灯激活 / 红灯静音叉号 混音台风格） */}
           <div className="flex flex-col justify-between pt-[1.5%] pb-[1.5%] w-12 bg-zinc-900 border-y border-r border-zinc-700 rounded-r-xl shadow-lg ml-1 p-1 gap-y-1 items-center">
             {[...Array(stringCount)].map((_, stringIdx) => {
               const isChecked = activeStrings.includes(stringIdx)
               const isDisableCheckbox = isChecked && activeStrings.length === 1
+              const isFreeMode = gameMode === 'free'
 
               return (
                 <label
                   key={stringIdx}
-                  className={`h-8 w-full flex items-center justify-center relative cursor-pointer rounded-md transition-colors select-none ${isChecked ? 'hover:bg-indigo-500/10 text-indigo-400' : 'hover:bg-zinc-800 text-zinc-600'} ${isDisableCheckbox ? 'cursor-not-allowed opacity-40' : ''}`}
+                  className={`h-8 w-full flex items-center justify-center relative cursor-pointer rounded-md border transition-all duration-200 select-none
+                    ${
+                      isFreeMode
+                        ? 'bg-zinc-950/40 border-zinc-800/60 cursor-not-allowed opacity-50'
+                        : isDisableCheckbox
+                          ? 'bg-zinc-950/40 border-zinc-800/60 cursor-not-allowed opacity-40'
+                          : isChecked
+                            ? 'bg-gradient-to-b from-indigo-600/15 to-indigo-500/5 border-indigo-500/70 shadow-[0_0_10px_rgba(99,102,241,0.2)] hover:border-indigo-400'
+                            : 'bg-gradient-to-b from-rose-950/20 to-red-950/5 border-rose-950 text-rose-500/70 shadow-[0_0_8px_rgba(244,63,94,0.1)] hover:border-rose-800 hover:text-rose-400'
+                    }
+                  `}
                 >
                   <input
                     type="checkbox"
                     checked={isChecked}
-                    disabled={isDisableCheckbox || gameMode === 'free'}
+                    disabled={isDisableCheckbox || isFreeMode}
                     onChange={() => toggleString(stringIdx)}
-                    className="w-4 h-4 rounded border-zinc-700 bg-zinc-800 text-indigo-600 focus:ring-0 focus:ring-offset-0 cursor-pointer disabled:cursor-not-allowed transition-all focus:outline-none"
+                    className="sr-only"
                   />
+
+                  {/* ✨ 核心变化点：条件渲染 蓝圆点 vs 红叉号 */}
+                  {isChecked ? (
+                    /* 选中状态：圆润闪耀的经典靛蓝 LED 灯 */
+                    <div className="w-2.5 h-2.5 rounded-full bg-indigo-400 shadow-[0_0_8px_rgba(129,140,248,0.9)] opacity-100 scale-100 transition-all duration-200" />
+                  ) : (
+                    /* 未选中状态：精致小巧的暗红色静音 ✕ 号 */
+                    <span
+                      className={`text-[11px] font-black tracking-tighter leading-none select-none transition-all duration-200 animate-fadeIn
+                      ${isFreeMode || isDisableCheckbox ? 'text-zinc-800 opacity-20' : 'text-rose-500/90'}
+                    `}
+                    >
+                      ✕
+                    </span>
+                  )}
                 </label>
               )
             })}
