@@ -1,7 +1,7 @@
 import { ModeSelector } from './components/ModeSelector'
 import { NoteDisplay } from './components/NoteDisplay'
 import { Fretboard } from './components/Fretboard'
-
+import packageJson from '../package.json'
 function App() {
   return (
     <div className="min-h-screen bg-black text-white flex flex-col justify-between p-4 selection:bg-indigo-500/30">
@@ -12,7 +12,7 @@ function App() {
             FRETBOARD MASTER
           </h1>
           <p className="text-[10px] font-mono font-bold tracking-widest text-zinc-600 mt-0.5">
-            VERSION 1.2.0
+            VERSION {packageJson.version}
           </p>
         </div>
 
