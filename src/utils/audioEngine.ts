@@ -12,7 +12,9 @@ export const playGuitarTone = (instrument: InstrumentType, stringIdx: number, fr
     const safeFretIdx = Math.max(0, Math.min(12, fretIdx));
 
     if (!audioCtx) {
-      const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
+      const AudioContextClass =
+        window.AudioContext ||
+        (window as typeof window & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
       if (AudioContextClass) {
         audioCtx = new AudioContextClass();
       }

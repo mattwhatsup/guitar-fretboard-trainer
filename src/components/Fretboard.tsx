@@ -43,14 +43,27 @@ export const Fretboard = () => {
 
   const stringCount = instrument === 'guitar' ? 6 : 4
 
+  // ❌ 错误红饼反馈
+  // ❌ 错误红饼反馈
   useEffect(() => {
     if (gameMode === 'training' && lastClickedFeedback.status === 'wrong') {
-      setErrorTrigger({
-        s: lastClickedFeedback.stringIdx,
-        f: lastClickedFeedback.fretIdx,
-      })
-      const timer = setTimeout(() => setErrorTrigger({}), 500)
-      return () => clearTimeout(timer)
+      // 🌟 将类型明确声明为 number
+      let timer: number
+
+      // 🌟 显式调用 window.setTimeout
+      const setupTimer = window.setTimeout(() => {
+        setErrorTrigger({
+          s: lastClickedFeedback.stringIdx,
+          f: lastClickedFeedback.fretIdx,
+        })
+
+        timer = window.setTimeout(() => setErrorTrigger({}), 500)
+      }, 0)
+
+      return () => {
+        window.clearTimeout(setupTimer)
+        if (timer) window.clearTimeout(timer)
+      }
     }
   }, [lastClickedFeedback, gameMode])
 
@@ -87,7 +100,7 @@ export const Fretboard = () => {
 
   return (
     <div className="w-full overflow-x-auto py-2 md:py-4 px-2 scrollbar-thin select-none">
-      <div className="min-w-[920px] max-w-5xl mx-auto space-y-4">
+      <div className="min-w-230 max-w-5xl mx-auto space-y-4">
         <ScoreBoard />
 
         <div className="flex items-center justify-between px-2 h-8">
@@ -187,10 +200,10 @@ export const Fretboard = () => {
                     className={`w-8 h-8 rounded-full flex items-center justify-center font-black transition-all duration-200 shadow-md absolute z-20 px-0.5 tracking-tighter
                     ${displayInfo.isAccidental ? 'text-[10px]' : 'text-sm'}
                     ${showBubble ? 'scale-105' : 'scale-0'}
-                    ${isFreeActive ? 'bg-gradient-to-r from-emerald-400 to-cyan-500 text-zinc-950 shadow-[0_0_15px_rgba(16,185,129,0.85)]' : ''}
-                    ${isTrainingFound ? (showAnswerMode ? 'bg-gradient-to-r from-indigo-400 to-cyan-500 text-zinc-950 shadow-[0_0_15px_rgba(129,140,248,0.85)]' : 'bg-gradient-to-r from-emerald-400 to-teal-500 text-zinc-950 shadow-[0_0_15px_rgba(52,211,153,0.85)]') : ''}
-                    ${isTargetAnswer && !isTrainingFound ? 'bg-gradient-to-r from-indigo-500 to-purple-600 text-white shadow-[0_0_15px_rgba(129,140,248,0.7)] animate-pulse' : ''}
-                    ${isTrainingWrong ? 'bg-gradient-to-r from-rose-500 to-red-600 text-white shadow-[0_0_15px_rgba(244,63,94,0.85)] animate-shake' : ''}
+                    ${isFreeActive ? 'bg-linear-to-r from-emerald-400 to-cyan-500 text-zinc-950 shadow-[0_0_15px_rgba(16,185,129,0.85)]' : ''}
+                    ${isTrainingFound ? (showAnswerMode ? 'bg-linear-to-r from-indigo-400 to-cyan-500 text-zinc-950 shadow-[0_0_15px_rgba(129,140,248,0.85)]' : 'bg-linear-to-r from-emerald-400 to-teal-500 text-zinc-950 shadow-[0_0_15px_rgba(52,211,153,0.85)]') : ''}
+                    ${isTargetAnswer && !isTrainingFound ? 'bg-linear-to-r from-indigo-500 to-purple-600 text-white shadow-[0_0_15px_rgba(129,140,248,0.7)] animate-pulse' : ''}
+                    ${isTrainingWrong ? 'bg-linear-to-r from-rose-500 to-red-600 text-white shadow-[0_0_15px_rgba(244,63,94,0.85)] animate-shake' : ''}
                   `}
                   >
                     {showBubble
@@ -290,10 +303,10 @@ export const Fretboard = () => {
                             className={`w-8 h-8 rounded-full flex items-center justify-center font-black transition-all duration-200 shadow-md absolute px-0.5 tracking-tighter whitespace-nowrap
                             ${displayInfo.isAccidental ? 'text-[9px] md:text-[10px]' : 'text-xs md:text-sm'}
                             ${showBubble ? 'scale-110' : 'scale-0 hover:scale-75 bg-zinc-600/30 text-zinc-100 backdrop-blur-[2px]'}
-                            ${isFreeActive ? 'bg-gradient-to-r from-emerald-400 to-cyan-500 text-zinc-950 shadow-[0_0_20px_rgba(52,211,153,0.85)]' : ''}
-                            ${isTrainingFound ? (showAnswerMode ? 'bg-gradient-to-r from-indigo-400 to-cyan-500 text-zinc-950 shadow-[0_0_20px_rgba(129,140,248,0.85)]' : 'bg-gradient-to-r from-emerald-400 to-teal-500 text-zinc-950 shadow-[0_0_20px_rgba(52,211,153,0.85)]') : ''}
-                            ${isTargetAnswer && !isTrainingFound ? 'bg-gradient-to-r from-indigo-500 to-purple-600 text-white shadow-[0_0_20px_rgba(129,140,248,0.7)] animate-pulse' : ''}
-                            ${isTrainingWrong ? 'bg-gradient-to-r from-rose-500 to-red-600 text-white shadow-[0_0_20px_rgba(244,63,94,0.85)] animate-shake' : ''}
+                            ${isFreeActive ? 'bg-linear-to-r from-emerald-400 to-cyan-500 text-zinc-950 shadow-[0_0_20px_rgba(52,211,153,0.85)]' : ''}
+                            ${isTrainingFound ? (showAnswerMode ? 'bg-linear-to-r from-indigo-400 to-cyan-500 text-zinc-950 shadow-[0_0_20px_rgba(129,140,248,0.85)]' : 'bg-linear-to-r from-emerald-400 to-teal-500 text-zinc-950 shadow-[0_0_20px_rgba(52,211,153,0.85)]') : ''}
+                            ${isTargetAnswer && !isTrainingFound ? 'bg-linear-to-r from-indigo-500 to-purple-600 text-white shadow-[0_0_20px_rgba(129,140,248,0.7)] animate-pulse' : ''}
+                            ${isTrainingWrong ? 'bg-linear-to-r from-rose-500 to-red-600 text-white shadow-[0_0_20px_rgba(244,63,94,0.85)] animate-shake' : ''}
                           `}
                           >
                             {showBubble
@@ -328,8 +341,8 @@ export const Fretboard = () => {
                         : isDisableCheckbox
                           ? 'bg-zinc-950/40 border-zinc-800/60 cursor-not-allowed opacity-40'
                           : isChecked
-                            ? 'bg-gradient-to-b from-indigo-600/15 to-indigo-500/5 border-indigo-500/70 shadow-[0_0_10px_rgba(99,102,241,0.2)] hover:border-indigo-400'
-                            : 'bg-gradient-to-b from-rose-950/20 to-red-950/5 border-rose-950 text-rose-500/70 shadow-[0_0_8px_rgba(244,63,94,0.1)] hover:border-rose-800 hover:text-rose-400'
+                            ? 'bg-linear-to-b from-indigo-600/15 to-indigo-500/5 border-indigo-500/70 shadow-[0_0_10px_rgba(99,102,241,0.2)] hover:border-indigo-400'
+                            : 'bg-linear-to-b from-rose-950/20 to-red-950/5 border-rose-950 text-rose-500/70 shadow-[0_0_8px_rgba(244,63,94,0.1)] hover:border-rose-800 hover:text-rose-400'
                     }
                   `}
                 >

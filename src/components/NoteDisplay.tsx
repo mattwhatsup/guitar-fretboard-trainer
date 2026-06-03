@@ -25,7 +25,7 @@ export const NoteDisplay = () => {
           查找目标：
         </span>
         {/* 💡 放大并突出了音名，增加了呼吸感的阴影，让它像一个真正的关卡卡片 */}
-        <div className="text-4xl md:text-5xl font-black text-transparent bg-clip-text bg-gradient-to-r from-white via-zinc-200 to-zinc-400 drop-shadow-[0_2px_8px_rgba(255,255,255,0.15)] font-mono tracking-tighter bg-zinc-900 px-3 py-1 rounded-xl border border-zinc-800">
+        <div className="text-4xl md:text-5xl font-black text-transparent bg-clip-text bg-linear-to-r from-white via-zinc-200 to-zinc-400 drop-shadow-[0_2px_8px_rgba(255,255,255,0.15)] font-mono tracking-tighter bg-zinc-900 px-3 py-1 rounded-xl border border-zinc-800">
           {currentNote && isTimerRunning ? currentNote : 'N/A'}
         </div>
       </div>
