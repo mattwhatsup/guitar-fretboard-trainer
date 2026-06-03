@@ -1,73 +1,64 @@
-# React + TypeScript + Vite
+# 🎸 Guitar & Ukulele Fretboard Trainer
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+A modern, interactive fretboard memory training tool built with React, TypeScript, and Vite. Designed to help guitarists and ukulele players master note positions on the fretboard, improve sight-reading skills, and strengthen music theory fundamentals through gamified practice.
 
-Currently, two official plugins are available:
+## ✨ Features
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+### 🎯 Smart Training Mode
 
-## React Compiler
+- **Random Note Quizzes**: The system generates random target notes, and you must click the correct position(s) on the fretboard.
+- **Instant Feedback**:
+  - ✅ **Correct**: Highlights in green and plays the corresponding tone to reinforce auditory memory.
+  - ❌ **Incorrect**: Shows a red shake animation to help correct mistakes immediately.
+- **Progress Tracking**: Real-time display of accuracy and completion status for each stage.
+- **Hint System**: Stuck? Use the "Show Answers" button to reveal all valid positions for the current target note.
+- **Keyboard Support**: Press `Space` or `Enter` to quickly skip to the next question, keeping your practice flow uninterrupted.
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+### 🎵 Free Play Mode
 
-## Expanding the ESLint configuration
+- **Unrestricted Exploration**: Practice without the pressure of quizzes. Click any fret to play and learn.
+- **Real-time Note Display**: Instantly shows note names (e.g., C#, Db) upon interaction, serving as a quick reference guide.
+- **String Control**: Toggle individual strings on or off to focus on specific string groups or scales.
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
+### 🎼 Realistic Audio Engine
 
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
+- **Synthesized Tones**: Built-in lightweight audio engine plays realistic guitar/ukulele tones for every note clicked.
+- **Low Latency**: Ensures immediate audio feedback for a responsive playing experience.
 
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
+### 📱 Multi-Instrument Support
 
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
-```
+- **Guitar**: Standard 6-string guitar fretboard with full note mapping up to the 12th fret.
+- **Ukulele**: Standard 4-string ukulele fretboard, adapted for its unique tuning logic.
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+### 🎨 Modern UI/UX
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
+- **Responsive Design**: Fully optimized for both desktop and mobile devices.
+- **Visual Aids**:
+  - Special marking for accidental notes (e.g., C#/Db).
+  - Clear fret inlays and markers.
+  - Smooth animations and transitions for a polished feel.
 
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+## 🚀 Tech Stack
+
+- **Frontend Framework**: [React](https://react.dev/)
+- **Language**: [TypeScript](https://www.typescriptlang.org/)
+- **Build Tool**: [Vite](https://vitejs.dev/)
+- **State Management**: [Zustand](https://zustand-demo.pmnd.rs/) (Lightweight global state management)
+- **Styling**: Tailwind CSS (Inferred from class names in source code)
+
+## 📦 Installation & Setup
+
+### Prerequisites
+
+- Node.js >= 18.0.0
+- npm / yarn / pnpm
+
+### Install Dependencies
+
+```bash
+npm install
+# or
+yarn install
+# or
+pnpm install
 ```

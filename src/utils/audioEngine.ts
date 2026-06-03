@@ -1,50 +1,72 @@
 import type { InstrumentType } from '../store/useGameStore';
 
+// 🌟 全局声明扩展 Window 接口，完美通过 TypeScript 严格检查，干掉 `any`
+declare global {
+  interface Window {
+    __guitarAudioCtx?: AudioContext;
+    WeixinJSBridge?: {
+      invoke: (method: string, args: object, callback: () => void, loop: boolean) => void;
+    };
+  }
+}
+
 const GUITAR_FREQS = [329.63, 246.94, 196.00, 146.83, 110.00, 82.41];
 const UKULELE_FREQS = [440.00, 329.63, 261.63, 392.00];
 
-let audioCtx: AudioContext | null = null;
-
-// 在你的 playGuitarTone 文件中增加并导出这个函数
+/**
+ * 🌟 核心解锁函数：在用户第一顺位点击流中被调用，强行激活 iOS 音频管道
+ */
 export const initAudioContext = () => {
   try {
-    if (!audioCtx) {
+    if (!window.__guitarAudioCtx) {
       const AudioContextClass =
         window.AudioContext ||
         (window as typeof window & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
+
       if (AudioContextClass) {
-        audioCtx = new AudioContextClass();
+        window.__guitarAudioCtx = new AudioContextClass();
       }
     }
 
-    // 如果已经存在，强行在用户原生的触摸事件里 resume 激活它
-    if (audioCtx && audioCtx.state === 'suspended') {
-      audioCtx.resume().then(() => {
-        console.log("🔊 iOS 音频引擎成功激活！当前状态:", audioCtx?.state);
+    const ctx = window.__guitarAudioCtx;
+    if (ctx && ctx.state === 'suspended') {
+      ctx.resume().then(() => {
+        console.log("🔊 iOS 硬件音频管道激活成功！状态:", ctx.state);
+
+        // 🚀 iOS 终极秘籍：创建一个瞬间的静音振荡器，强行让 iOS 硬件管道通电
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        gain.gain.setValueAtTime(0, ctx.currentTime);
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.start(0);
+        osc.stop(0.001);
+      }).catch(err => {
+        console.warn("激活音频管道失败:", err);
       });
     }
   } catch (e) {
-    console.error("初始化音频失败", e);
+    console.error("初始化全局音频上下文失败:", e);
   }
 };
 
+/**
+ * 吉他/尤克里里 声音合成与播放主函数
+ */
 export const playGuitarTone = (instrument: InstrumentType, stringIdx: number, fretIdx: number) => {
   try {
     const maxString = instrument === 'guitar' ? 5 : 3;
     const safeStringIdx = Math.max(0, Math.min(maxString, stringIdx));
     const safeFretIdx = Math.max(0, Math.min(12, fretIdx));
 
-    if (!audioCtx) {
-      const AudioContextClass =
-        window.AudioContext ||
-        (window as typeof window & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
-      if (AudioContextClass) {
-        audioCtx = new AudioContextClass();
-      }
+    // 如果还没有上下文，尝试立刻初始化
+    if (!window.__guitarAudioCtx) {
+      initAudioContext();
     }
 
-    // 🛠️ 核心修复：防止 TS18047 'audioCtx' is possibly 'null'
-    if (!audioCtx) return;
+    const audioCtx = window.__guitarAudioCtx;
+    if (!audioCtx) return; // 规避 TS Null 检查错误
+
     if (audioCtx.state === 'suspended') {
       audioCtx.resume();
     }
@@ -61,6 +83,7 @@ export const playGuitarTone = (instrument: InstrumentType, stringIdx: number, fr
     // 尤克里里的物理余音衰减稍快于吉他
     const duration = instrument === 'ukulele' ? 0.9 : 1.6;
 
+    // 压缩器节点
     const compressor = audioCtx.createDynamicsCompressor();
     compressor.threshold.setValueAtTime(-14, now);
     compressor.knee.setValueAtTime(8, now);
@@ -69,12 +92,14 @@ export const playGuitarTone = (instrument: InstrumentType, stringIdx: number, fr
     compressor.release.setValueAtTime(0.15, now);
     compressor.connect(audioCtx.destination);
 
+    // 主音量节点
     const masterGain = audioCtx.createGain();
     masterGain.gain.setValueAtTime(0, now);
     masterGain.gain.linearRampToValueAtTime(0.35, now + 0.005);
     masterGain.gain.exponentialRampToValueAtTime(0.001, now + duration);
     masterGain.connect(compressor);
 
+    // 动态滤波器
     const filterMultiplier = instrument === 'ukulele' ? 6.5 : (5.0 - (safeStringIdx * 0.6));
     const initialCutoff = Math.max(80, frequency * filterMultiplier);
     const finalCutoff = Math.max(80, frequency * (1.0 + (5 - safeStringIdx) * 0.05 + 0.01));
@@ -123,6 +148,7 @@ export const playGuitarTone = (instrument: InstrumentType, stringIdx: number, fr
     oscPluck.connect(gainPluck);
     gainPluck.connect(bodyFilter);
 
+    // 启动与停止
     oscBase.start(now);
     oscTone.start(now);
     oscPluck.start(now);
