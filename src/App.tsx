@@ -62,7 +62,7 @@ function App() {
 
         <div className="text-center">
           <h1 className="text-xl md:text-2xl font-black tracking-wider bg-linear-to-r from-zinc-100 to-zinc-400 bg-clip-text text-transparent">
-            FRETBOARD MASTER
+            FRETBOARD TRAINER
           </h1>
           <p className="text-[10px] font-mono font-bold tracking-widest text-zinc-600 mt-0.5">
             VERSION {packageJson.version}
