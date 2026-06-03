@@ -40,7 +40,7 @@ function App() {
         {/* 🐙 GitHub 经典卡片样式链接元素 */}
         <div className="md:absolute md:right-0 md:top-2 flex items-center">
           <a
-            href="https://github.com/你的用户名/你的仓库名" // 👈 请替换为你真实的 GitHub 仓库链接
+            href="https://github.com/mattwhatsup/guitar-fretboard-trainer" // 👈 请替换为你真实的 GitHub 仓库链接
             target="_blank"
             rel="noopener noreferrer"
             className="flex items-center gap-2 px-3 py-1.5 text-xs font-medium text-zinc-400 bg-zinc-900 border border-zinc-800 rounded-lg hover:text-white hover:bg-zinc-800 hover:border-zinc-700 transition-all focus:outline-none shadow-md group"
