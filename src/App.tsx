@@ -1,9 +1,30 @@
+import { useEffect } from 'react' // 🌟 引入 useEffect
+import { initAudioContext } from './utils/audioEngine' // 🌟 引入刚刚导出的解锁函数
+
 import { ModeSelector } from './components/ModeSelector'
 import { NoteDisplay } from './components/NoteDisplay'
 import { Fretboard } from './components/Fretboard'
 import packageJson from '../package.json'
 
 function App() {
+  // 🌟 全局触摸/点击解锁机制
+  useEffect(() => {
+    const unlock = () => {
+      initAudioContext()
+      // 解锁成功后立刻移除监听，不留性能尾巴
+      window.removeEventListener('click', unlock)
+      window.removeEventListener('touchend', unlock)
+    }
+
+    window.addEventListener('click', unlock)
+    window.addEventListener('touchend', unlock) // iOS 必须加上系统的全局触控抬起事件
+
+    return () => {
+      window.removeEventListener('click', unlock)
+      window.removeEventListener('touchend', unlock)
+    }
+  }, [])
+
   return (
     <div className="min-h-screen bg-black text-white flex flex-col justify-between p-4 selection:bg-indigo-500/30">
       {/* 👑 顶部页头区域：应用名、版本号、GitHub链接 与 模式选择一体化 */}

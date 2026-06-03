@@ -5,6 +5,29 @@ const UKULELE_FREQS = [440.00, 329.63, 261.63, 392.00];
 
 let audioCtx: AudioContext | null = null;
 
+// 在你的 playGuitarTone 文件中增加并导出这个函数
+export const initAudioContext = () => {
+  try {
+    if (!audioCtx) {
+      const AudioContextClass =
+        window.AudioContext ||
+        (window as typeof window & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
+      if (AudioContextClass) {
+        audioCtx = new AudioContextClass();
+      }
+    }
+
+    // 如果已经存在，强行在用户原生的触摸事件里 resume 激活它
+    if (audioCtx && audioCtx.state === 'suspended') {
+      audioCtx.resume().then(() => {
+        console.log("🔊 iOS 音频引擎成功激活！当前状态:", audioCtx?.state);
+      });
+    }
+  } catch (e) {
+    console.error("初始化音频失败", e);
+  }
+};
+
 export const playGuitarTone = (instrument: InstrumentType, stringIdx: number, fretIdx: number) => {
   try {
     const maxString = instrument === 'guitar' ? 5 : 3;
