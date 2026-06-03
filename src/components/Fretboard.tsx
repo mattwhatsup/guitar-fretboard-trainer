@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { getNoteByPosition } from '../utils/guitarLogic'
+import { playGuitarTone } from '../utils/audioEngine'
 import { useGameStore } from '../store/useGameStore'
 import { ScoreBoard } from './ScoreBoard'
 
@@ -19,6 +20,7 @@ const getDisplayNoteName = (
 
 export const Fretboard = () => {
   const {
+    instrument, // 🌟 完美注入乐器状态：'guitar' | 'ukulele'
     gameMode,
     correctPositions,
     lastClickedFeedback,
@@ -38,6 +40,9 @@ export const Fretboard = () => {
   const [freeHighlights, setFreeHighlights] = useState<Record<string, boolean>>(
     {},
   )
+
+  // 🌟 动态决定当前的琴弦总数
+  const stringCount = instrument === 'guitar' ? 6 : 4
 
   // ❌ 错误红饼反馈
   useEffect(() => {
@@ -69,6 +74,8 @@ export const Fretboard = () => {
   }, [gameMode, nextQuestion])
 
   const handleFretClick = (stringIdx: number, fretIdx: number) => {
+    // 🌟 注入音频引擎联动，支持传参识别当前乐器发声频率
+    playGuitarTone(instrument, stringIdx, fretIdx)
     checkAnswer(stringIdx, fretIdx)
 
     if (gameMode === 'free') {
@@ -85,7 +92,7 @@ export const Fretboard = () => {
   return (
     <div className="w-full overflow-x-auto py-2 md:py-4 px-2 scrollbar-thin select-none">
       <div className="min-w-[920px] max-w-5xl mx-auto space-y-4">
-        {/* 📊 看板区（自由模式下内部会自动 return null） */}
+        {/* 📊 看板区 */}
         <ScoreBoard />
 
         {/* 提示与状态栏 */}
@@ -123,17 +130,19 @@ export const Fretboard = () => {
             </>
           ) : (
             <div className="text-xs font-bold text-emerald-400 tracking-wide flex items-center gap-2">
-              🎵 自由演奏模式：点击任意品格即弹即显，不计分不限时
+              🎵 {instrument === 'guitar' ? '吉他' : '尤克里里'}
+              自由演奏模式：点击任意品格即弹即显，不计分不限时
             </div>
           )}
         </div>
 
         {/* 🎸 指板网格 */}
         <div className="flex items-stretch justify-center w-full">
-          {/* 左侧：0 品 */}
-          <div className="flex flex-col justify-between pt-[2.5%] pb-[2.5%] w-12 bg-zinc-900 border-y border-l border-zinc-700 rounded-l-xl p-1 gap-y-1">
-            {[...Array(6)].map((_, stringIdx) => {
-              const rawNote = getNoteByPosition(stringIdx, 0)
+          {/* 左侧：0 品空弦音区 */}
+          <div className="flex flex-col justify-between pt-[1.5%] pb-[1.5%] w-12 bg-zinc-900 border-y border-l border-zinc-700 rounded-l-xl p-1 gap-y-1">
+            {[...Array(stringCount)].map((_, stringIdx) => {
+              // 🌟 传入 instrument，使其正确索引到吉他（EADGBE）或尤克里里（GCEA）的空弦
+              const rawNote = getNoteByPosition(instrument, stringIdx, 0)
               const displayInfo = getDisplayNoteName(rawNote)
               const isStringActive =
                 gameMode === 'free' || activeStrings.includes(stringIdx)
@@ -149,8 +158,24 @@ export const Fretboard = () => {
                 errorTrigger.f === 0
               const isFreeActive =
                 gameMode === 'free' && freeHighlights[`${stringIdx}-0`]
+
+              // 🌟 完美支持原版的正确答案高亮模式展现
+              const isTargetAnswer =
+                gameMode === 'training' &&
+                showAnswerMode &&
+                rawNote ===
+                  useGameStore
+                    .getState()
+                    .currentNote.replace('Db', 'C#')
+                    .replace('Eb', 'D#')
+                    .replace('Gb', 'F#')
+                    .replace('Ab', 'G#')
+                    .replace('Bb', 'A#')
               const showBubble =
-                isTrainingFound || isTrainingWrong || isFreeActive
+                isTrainingFound ||
+                isTrainingWrong ||
+                isFreeActive ||
+                isTargetAnswer
 
               return (
                 <button
@@ -173,6 +198,7 @@ export const Fretboard = () => {
                     ${showBubble ? 'scale-105' : 'scale-0'}
                     ${isFreeActive ? 'bg-gradient-to-r from-emerald-400 to-cyan-500 text-zinc-950 shadow-[0_0_15px_rgba(16,185,129,0.85)]' : ''}
                     ${isTrainingFound ? (showAnswerMode ? 'bg-gradient-to-r from-indigo-400 to-cyan-500 text-zinc-950 shadow-[0_0_15px_rgba(129,140,248,0.85)]' : 'bg-gradient-to-r from-emerald-400 to-teal-500 text-zinc-950 shadow-[0_0_15px_rgba(52,211,153,0.85)]') : ''}
+                    ${isTargetAnswer && !isTrainingFound ? 'bg-gradient-to-r from-indigo-500 to-purple-600 text-white shadow-[0_0_15px_rgba(129,140,248,0.7)] animate-pulse' : ''}
                     ${isTrainingWrong ? 'bg-gradient-to-r from-rose-500 to-red-600 text-white shadow-[0_0_15px_rgba(244,63,94,0.85)] animate-shake' : ''}
                   `}
                   >
@@ -183,27 +209,39 @@ export const Fretboard = () => {
                       : ''}
                   </div>
                   <span className={showBubble ? 'opacity-0' : 'opacity-80'}>
-                    {isStringActive ? '0品' : '✕'}
+                    {isStringActive ? `${stringIdx + 1}弦` : '✕'}
                   </span>
                 </button>
               )
             })}
           </div>
 
-          {/* 中间：1-12 品网格 */}
-          <div className="relative flex-1 bg-[url('/fretboard.png')] bg-contain bg-no-repeat bg-center aspect-[866/335] border-y border-zinc-700">
-            <div className="absolute inset-x-0 top-0 bottom-0 pl-[1.1%] pr-[0.4%] pt-[2.5%] pb-[2.5%] flex flex-col justify-between">
-              {[...Array(6)].map((_, stringIdx) => {
+          {/* 中间：1-12 品网格区 */}
+          {/* 🌟 核心改进：根据不同乐器动态应用图片、不重复渲染，同时切换尤克里里更窄的纵横比 (aspect-[866/220]) */}
+          <div
+            className="relative flex-1 bg-no-repeat bg-cover bg-center border-y border-zinc-700 transition-all duration-300"
+            style={{
+              backgroundImage: `url('${instrument === 'guitar' ? './fretboard.png' : './ukulele-fretboard.png'}')`,
+              aspectRatio: instrument === 'guitar' ? '866/335' : '866/177',
+            }}
+          >
+            <div className="absolute inset-x-0 top-0 bottom-0 pt-[1.5%] pb-[1.5%] flex flex-col justify-between">
+              {[...Array(stringCount)].map((_, stringIdx) => {
                 const isStringActive =
                   gameMode === 'free' || activeStrings.includes(stringIdx)
 
                 return (
                   <div
                     key={stringIdx}
-                    className={`flex items-center h-[12%] w-full justify-between transition-opacity duration-200 ${!isStringActive ? 'opacity-15 pointer-events-none' : ''}`}
+                    className={`flex items-center ${instrument === 'guitar' ? 'h-[12%]' : 'h-[20%]'} w-full justify-between transition-opacity duration-200 ${!isStringActive ? 'opacity-15 pointer-events-none' : ''}`}
                   >
                     {IMAGE_FRETS.map((fretIdx) => {
-                      const rawNote = getNoteByPosition(stringIdx, fretIdx)
+                      // 🌟 传入 instrument
+                      const rawNote = getNoteByPosition(
+                        instrument,
+                        stringIdx,
+                        fretIdx,
+                      )
                       const displayInfo = getDisplayNoteName(rawNote)
 
                       const isTrainingFound =
@@ -219,8 +257,24 @@ export const Fretboard = () => {
                       const isFreeActive =
                         gameMode === 'free' &&
                         freeHighlights[`${stringIdx}-${fretIdx}`]
+
+                      // 🌟 完美同步支持你原项目中的答案提示逻辑
+                      const isTargetAnswer =
+                        gameMode === 'training' &&
+                        showAnswerMode &&
+                        rawNote ===
+                          useGameStore
+                            .getState()
+                            .currentNote.replace('Db', 'C#')
+                            .replace('Eb', 'D#')
+                            .replace('Gb', 'F#')
+                            .replace('Ab', 'G#')
+                            .replace('Bb', 'A#')
                       const showBubble =
-                        isTrainingFound || isTrainingWrong || isFreeActive
+                        isTrainingFound ||
+                        isTrainingWrong ||
+                        isFreeActive ||
+                        isTargetAnswer
 
                       if (fretIdx === 12) {
                         return (
@@ -250,6 +304,7 @@ export const Fretboard = () => {
                             ${showBubble ? 'scale-110' : 'scale-0 hover:scale-75 bg-zinc-600/30 text-zinc-100 backdrop-blur-[2px]'}
                             ${isFreeActive ? 'bg-gradient-to-r from-emerald-400 to-cyan-500 text-zinc-950 shadow-[0_0_20px_rgba(52,211,153,0.85)]' : ''}
                             ${isTrainingFound ? (showAnswerMode ? 'bg-gradient-to-r from-indigo-400 to-cyan-500 text-zinc-950 shadow-[0_0_20px_rgba(129,140,248,0.85)]' : 'bg-gradient-to-r from-emerald-400 to-teal-500 text-zinc-950 shadow-[0_0_20px_rgba(52,211,153,0.85)]') : ''}
+                            ${isTargetAnswer && !isTrainingFound ? 'bg-gradient-to-r from-indigo-500 to-purple-600 text-white shadow-[0_0_20px_rgba(129,140,248,0.7)] animate-pulse' : ''}
                             ${isTrainingWrong ? 'bg-gradient-to-r from-rose-500 to-red-600 text-white shadow-[0_0_20px_rgba(244,63,94,0.85)] animate-shake' : ''}
                           `}
                           >
@@ -268,9 +323,9 @@ export const Fretboard = () => {
             </div>
           </div>
 
-          {/* 右侧：琴弦开关 */}
-          <div className="flex flex-col justify-between pt-[2.5%] pb-[2.5%] w-12 bg-zinc-900 border-y border-r border-zinc-700 rounded-r-xl shadow-lg ml-1 p-1 gap-y-1 items-center">
-            {[...Array(6)].map((_, stringIdx) => {
+          {/* 右侧：琴弦开关区 */}
+          <div className="flex flex-col justify-between pt-[1.5%] pb-[1.5%] w-12 bg-zinc-900 border-y border-r border-zinc-700 rounded-r-xl shadow-lg ml-1 p-1 gap-y-1 items-center">
+            {[...Array(stringCount)].map((_, stringIdx) => {
               const isChecked = activeStrings.includes(stringIdx)
               const isDisableCheckbox = isChecked && activeStrings.length === 1
 
