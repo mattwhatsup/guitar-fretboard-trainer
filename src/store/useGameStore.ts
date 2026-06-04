@@ -172,8 +172,11 @@ export const useGameStore = create<GameState>((set, get) => ({
   revealAllAnswers: () => set({ showAnswerMode: true, isTimerRunning: false }),
 
   nextQuestion: () => {
-    const { onlyNatural, accidentalMode, activeStrings, instrument } = get()
-    const nextNote = getRandomNote(onlyNatural, accidentalMode)
+    const { onlyNatural, accidentalMode, activeStrings, instrument, currentNote } = get()
+    let nextNote = getRandomNote(onlyNatural, accidentalMode)
+    while (nextNote === currentNote) {
+      nextNote = getRandomNote(onlyNatural, accidentalMode)
+    }
     const count = calculateTargetCount(nextNote, activeStrings, instrument)
 
     set({
